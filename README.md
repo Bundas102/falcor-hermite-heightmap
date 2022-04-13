@@ -2,11 +2,88 @@
 
 ## The Parallax Project
 
-Our project was created in Falcor. You can find the Falcor 4.4 readme below. Our project is `Samples > Parallax`.
+![Parallax mapping example](imgs/main.png)
 
-The project contains the implementation for the following Eurographics 2022 Poster: *Hermite interpolation of heightmaps*, Róbert Bán and Gábor Valasek.
+This project contains the implementation for the following Eurographics 2022 Short Paper: *Quick cone map generation on the GPU*, G&aacute;bor Valasek and R&oacute;bert B&aacute;n.
+Our project was created in Falcor. You can find the Falcor 4.4 readme below ours. Our project is `Samples > Parallax`.
 
+This project (https://github.com/Bundas102/falcor-hermite-heightmap) contains the implementation for the Eurographics 2022 Poster: *Hermite interpolation of heightmaps*, R&oacute;bert B&aacute;n and G&aacute;bor Valasek.
 
+Check out https://github.com/Bundas102/falcor-conemap for our other project based on the same application for the Eurpgraphics 2022 Short Paper: *Quick cone map generation on the GPU*, G&aacute;bor Valasek and R&oacute;bert B&aacute;n.
+
+## Building and running the project
+- Open `Falcor.sln` with Visual Studio
+- Change the Startup Project to `Samples > Parallax` in the Solution Explorer
+- Build & Run &ndash; this will build the `Falcor` project as a dependency automatically
+
+## Overview
+![Handled Textures menu](imgs/texturesmenu.png)
+
+- The project renders a single square (two triangles) and uses parallax mapping techniques to apply a height map to achieve a detailed surface.
+- The program handles three textures: a height map, a cone map and, an albedo/diffuse texture.
+Either the height map or the cone map is used at any time for parallax mapping.
+- The height map can be loaded from an image file, or it can be generated procedurally from a height function.
+- The cone map can be generated from the height map.
+
+## Render Settings
+![Render Settings menu](imgs/rendersettingsmenu.png)
+
+Rendering is done by a primary search and then a refinement phase. See [Displacement Mapping on the GPU &mdash; State of the Art](https://doi.org/10.1111/j.1467-8659.2007.01108.x) for an overview.
+
+The primary search is defined by `PARALLAX_FUN`:
+- *0: Bump mapping* &ndash; no search
+- *1: Parallax mapping* &ndash; a single parallax step
+- *2: Linear search* &ndash; uniformly divide the ray interval into `Max step number` parts
+- *3: Cone step mapping* &ndash; uses the cone map for space skipping
+
+The refinement is defined by `REFINE_FUN`:
+- *0: No refinement*
+- *1: Linear approx* &ndash; assumes the surface is linear between the last two steps
+- *2: Binary search* &ndash; halves the interval between the last two steps `Max refine step number` times
+
+`HEIGHT_SOURCE` is the height value used during the primary search and refinement steps.
+- *0: Texture lookup - bilinear* &ndash; this is the traditional sampling strategy
+- *1: Hermite interpolation* &ndash; the interpolation method incorporates the derivatives, the method is described in our poster
+
+`NORMAL_SOURCE` is the calculation method for the shading normal.
+- *0: Num. appr. from heightmap* &ndash; traditional approximation from the height map
+- *1: Texture lookup - bilinear* &ndash; since we only store the first two coordinates of the normals, this method does not give a usable result
+- *2: Hermite interpolation* &ndash; the exact normal vectors of the Hermite interpolated surface
+
+## Procedural height map generation
+![Procedural Heightmap Generation menu](imgs/proceduralgenerationmenu.png)
+
+The generated heightmap is created from a height function defined in `ProceduralHeightmap.cs.slang`. Select the used function with `HEIGHT_FUN`. Derivatives are calculated alongside the height values using automatic differentiation. The encoded normal is then saved to the green and blue channels of the height texture.
+
+The project contains two functions by default, but feel free to create your own:
+1. Write the height function mapping [0,1]&sup2; texture coordinates to [0,1] height values &ndash; in `ProceduralHeightmap.cs.slang`
+2. Extend the preprocessor switch with the new entry &ndash; in `ProceduralHeightmap.cs.slang`
+3. Extend the GUI list `kHeightFunList` with the new function  &ndash; in `Parallax.cpp`
+
+## Cone map generation
+![Conemap Generation menu](imgs/conemapgenerationmenu.png)
+
+Create a cone map from the loaded height map. The cone map is selected for use upon generation, but the render method does not change automatically, so you might have to set `PARALLAX_FUN` in *Render Settings* to `3: Cone step mapping` to make use of the cone map.
+
+The normal vectors from the height map are copied to the blue and alpha channels of the cone map if the height map was created from a height function. If the height map was loaded from file then an approximated normal is calculated and written into the cone map.
+
+## Load image
+![Load Image menu](imgs/loadimagemenu.png)
+
+Load a height map or an albedo texture from an image file. The height values are expected to be in the red channel of the texture.
+
+## Debug view
+![Debug Texture View menu](imgs/debugtexturemenu.png)
+
+The selected texture is rendered to the square using point (nearest neighbor) sampling. If the texture has multiple MIP levels, the desired level is selectable.
+
+The `RED`, `GREEN` and `BLUE` settings are the channels of the rendered color. Some common presets are accessible through the buttons under the channel settings.
+
+For cone maps the red channel contains the height values and the green channel has the cones (tangent of the half openening angle).
+If normals are present, the green and blue channels (for height maps) / the blue and alpha channels (for cone maps) contain the first two coordinates of the normal vector encoded with a linear transformation from [-1,1] to [0,1].
+
+---
+---
 # Falcor 4.4
 
 Falcor is a real-time rendering framework supporting DirectX 12. It aims to improve productivity of research and prototype projects.
